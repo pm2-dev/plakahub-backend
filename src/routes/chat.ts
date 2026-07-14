@@ -101,7 +101,24 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
     return !blockedUserIds.has(otherId);
   });
 
-  res.json({ success: true, conversations: filtered });
+  const unreadCounts = await prisma.message.groupBy({
+    by: ["conversationId"],
+    where: {
+      conversationId: { in: filtered.map((c) => c.id) },
+      senderId: { not: userId },
+      isRead: false,
+    },
+    _count: { id: true },
+  });
+
+  const unreadMap = new Map(unreadCounts.map((u) => [u.conversationId, u._count.id]));
+
+  const result = filtered.map((c) => ({
+    ...c,
+    unreadCount: unreadMap.get(c.id) ?? 0,
+  }));
+
+  res.json({ success: true, conversations: result });
 });
 
 router.get("/:id/messages", async (req: Request, res: Response): Promise<void> => {
@@ -121,6 +138,15 @@ router.get("/:id/messages", async (req: Request, res: Response): Promise<void> =
     res.status(403).json({ success: false, message: "Bu sohbete erişim yetkiniz yok." });
     return;
   }
+
+  await prisma.message.updateMany({
+    where: {
+      conversationId,
+      senderId: { not: userId },
+      isRead: false,
+    },
+    data: { isRead: true },
+  });
 
   const messages = await prisma.message.findMany({
     where: { conversationId },
