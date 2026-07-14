@@ -1,5 +1,6 @@
 import "dotenv/config";
 import express from "express";
+import path from "path";
 import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
@@ -35,6 +36,8 @@ const globalLimiter = rateLimit({
 app.use(globalLimiter);
 
 app.use(express.json());
+
+app.use("/uploads", express.static(path.resolve(__dirname, "../uploads")));
 
 app.get("/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });

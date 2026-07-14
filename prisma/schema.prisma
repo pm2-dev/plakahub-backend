@@ -18,6 +18,10 @@ model User {
   password      String
   role          Role     @default(USER)
   expoPushToken String?  @map("expo_push_token")
+  avatarUrl     String?  @map("avatar_url")
+  carBrand      String?  @map("car_brand")
+  carModel      String?  @map("car_model")
+  carYear       String?  @map("car_year")
   createdAt     DateTime @default(now())
 
   plates               Plate[]
@@ -25,8 +29,25 @@ model User {
   conversationsAsUser1 Conversation[]  @relation("user1")
   conversationsAsUser2 Conversation[]  @relation("user2")
   sentMessages         Message[]
+  blockedUsers         BlockedUser[]   @relation("blocker")
+  blockedByUsers       BlockedUser[]   @relation("blocked")
 
   @@map("users")
+}
+
+model BlockedUser {
+  id        String   @id @default(cuid())
+  blockerId String   @map("blocker_id")
+  blockedId String   @map("blocked_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  blocker User @relation("blocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked User @relation("blocked", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@index([blockerId])
+  @@index([blockedId])
+  @@map("blocked_users")
 }
 
 model Conversation {

@@ -29,6 +29,20 @@ router.post("/start", async (req: Request, res: Response): Promise<void> => {
     return;
   }
 
+  const block = await prisma.blockedUser.findFirst({
+    where: {
+      OR: [
+        { blockerId: userId, blockedId: targetUserId },
+        { blockerId: targetUserId, blockedId: userId },
+      ],
+    },
+  });
+
+  if (block) {
+    res.status(403).json({ success: false, message: "Bu kullaniciyla sohbet baslatilamaz." });
+    return;
+  }
+
   const [u1, u2] = [userId, targetUserId].sort();
 
   let conversation = await prisma.conversation.findUnique({
@@ -55,6 +69,18 @@ router.post("/start", async (req: Request, res: Response): Promise<void> => {
 router.get("/", async (req: Request, res: Response): Promise<void> => {
   const userId = req.user!.userId;
 
+  const blocks = await prisma.blockedUser.findMany({
+    where: {
+      OR: [{ blockerId: userId }, { blockedId: userId }],
+    },
+    select: { blockerId: true, blockedId: true },
+  });
+
+  const blockedUserIds = new Set<string>();
+  for (const b of blocks) {
+    blockedUserIds.add(b.blockerId === userId ? b.blockedId : b.blockerId);
+  }
+
   const conversations = await prisma.conversation.findMany({
     where: {
       OR: [{ user1Id: userId }, { user2Id: userId }],
@@ -70,7 +96,12 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
     orderBy: { updatedAt: "desc" },
   });
 
-  res.json({ success: true, conversations });
+  const filtered = conversations.filter((c) => {
+    const otherId = c.user1Id === userId ? c.user2Id : c.user1Id;
+    return !blockedUserIds.has(otherId);
+  });
+
+  res.json({ success: true, conversations: filtered });
 });
 
 router.get("/:id/messages", async (req: Request, res: Response): Promise<void> => {
@@ -123,6 +154,21 @@ router.post("/:id/messages", async (req: Request, res: Response): Promise<void> 
 
   if (conversation.user1Id !== userId && conversation.user2Id !== userId) {
     res.status(403).json({ success: false, message: "Bu sohbete mesaj gönderme yetkiniz yok." });
+    return;
+  }
+
+  const recipientIdForBlock = conversation.user1Id === userId ? conversation.user2Id : conversation.user1Id;
+  const blockExists = await prisma.blockedUser.findFirst({
+    where: {
+      OR: [
+        { blockerId: userId, blockedId: recipientIdForBlock },
+        { blockerId: recipientIdForBlock, blockedId: userId },
+      ],
+    },
+  });
+
+  if (blockExists) {
+    res.status(403).json({ success: false, message: "Bu kullaniciya mesaj gonderilemez." });
     return;
   }
 

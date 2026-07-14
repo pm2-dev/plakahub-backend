@@ -23,7 +23,11 @@ router.get("/search/:plateNumber", searchLimiter, async (req: Request<{ plateNum
     where: { plateNumber: normalized },
     include: {
       user: {
-        include: {
+        select: {
+          carBrand: true,
+          carModel: true,
+          carYear: true,
+          avatarUrl: true,
           socialProfiles: {
             where: { isHidden: false },
             select: {
@@ -41,12 +45,19 @@ router.get("/search/:plateNumber", searchLimiter, async (req: Request<{ plateNum
     return;
   }
 
+  const isProfileComplete = !!(plate.user.carBrand && plate.user.carModel && plate.user.carYear);
+
   res.json({
     found: true,
     plateNumber: plate.plateNumber,
     isVerified: plate.isVerified,
     userId: plate.userId,
-    socialProfiles: plate.user.socialProfiles,
+    isProfileComplete,
+    avatarUrl: plate.user.avatarUrl,
+    carBrand: plate.user.carBrand,
+    carModel: plate.user.carModel,
+    carYear: plate.user.carYear,
+    socialProfiles: isProfileComplete ? plate.user.socialProfiles : [],
   });
 });
 
