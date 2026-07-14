@@ -223,7 +223,7 @@ router.post("/block", async (req: Request, res: Response): Promise<void> => {
 
 router.delete("/block/:userId", async (req: Request, res: Response): Promise<void> => {
   const userId = req.user!.userId;
-  const targetUserId = req.params.userId;
+  const targetUserId = req.params.userId as string;
 
   const existing = await prisma.blockedUser.findUnique({
     where: { blockerId_blockedId: { blockerId: userId, blockedId: targetUserId } },
@@ -264,7 +264,7 @@ router.get("/blocks", async (req: Request, res: Response): Promise<void> => {
 
 router.get("/block-check/:userId", async (req: Request, res: Response): Promise<void> => {
   const userId = req.user!.userId;
-  const targetUserId = req.params.userId;
+  const targetUserId = req.params.userId as string;
 
   const block = await prisma.blockedUser.findUnique({
     where: { blockerId_blockedId: { blockerId: userId, blockedId: targetUserId } },
