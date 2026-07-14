@@ -6,8 +6,8 @@ import prisma from "../lib/prisma";
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || "fallback_secret";
 
-function generateToken(userId: string): string {
-  return jwt.sign({ userId }, JWT_SECRET, { expiresIn: "7d" });
+function generateToken(userId: string, role: string): string {
+  return jwt.sign({ userId, role }, JWT_SECRET, { expiresIn: "7d" });
 }
 
 router.post("/register", async (req: Request, res: Response): Promise<void> => {
@@ -67,7 +67,7 @@ router.post("/register", async (req: Request, res: Response): Promise<void> => {
     return { user, plate };
   });
 
-  const token = generateToken(result.user.id);
+  const token = generateToken(result.user.id, result.user.role);
 
   res.status(201).json({
     success: true,
@@ -76,6 +76,7 @@ router.post("/register", async (req: Request, res: Response): Promise<void> => {
     user: {
       id: result.user.id,
       email: result.user.email,
+      role: result.user.role,
       plates: [
         {
           plateNumber: result.plate.plateNumber,
@@ -127,7 +128,7 @@ router.post("/login", async (req: Request, res: Response): Promise<void> => {
     return;
   }
 
-  const token = generateToken(user.id);
+  const token = generateToken(user.id, user.role);
 
   res.json({
     success: true,
@@ -136,6 +137,7 @@ router.post("/login", async (req: Request, res: Response): Promise<void> => {
     user: {
       id: user.id,
       email: user.email,
+      role: user.role,
       plates: user.plates,
     },
   });

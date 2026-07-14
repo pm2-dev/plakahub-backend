@@ -5,6 +5,7 @@ import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import authRouter from "./routes/auth";
 import platesRouter from "./routes/plates";
+import adminRouter from "./routes/admin";
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3001;
@@ -39,6 +40,7 @@ app.get("/health", (_req, res) => {
 
 app.use("/api/auth", authRouter);
 app.use("/api/plates", platesRouter);
+app.use("/api/admin", adminRouter);
 
 app.listen(PORT, () => {
   console.log(`PlakaHub API sunucusu ${PORT} portunda çalışıyor`);

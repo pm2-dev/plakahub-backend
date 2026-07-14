@@ -18,6 +18,16 @@ async function main() {
 
   const hashedPassword = await bcrypt.hash("Test1234!", 12);
 
+  const adminPassword = await bcrypt.hash("admin123", 12);
+
+  const admin = await prisma.user.create({
+    data: {
+      email: "admin@plakahub.com",
+      password: adminPassword,
+      role: "ADMIN",
+    },
+  });
+
   const user1 = await prisma.user.create({
     data: {
       email: "ahmet@plakahub.com",
@@ -55,6 +65,7 @@ async function main() {
     },
   });
 
+  console.log(`Admin: ${admin.email} — Rol: ${admin.role}`);
   console.log(`Kullanıcı 1: ${user1.email} — Plaka: 34TEST11 (doğrulanmış)`);
   console.log(`Kullanıcı 2: ${user2.email} — Plaka: 06KAYIT22 (doğrulanmamış)`);
   console.log("Seed tamamlandı.");
