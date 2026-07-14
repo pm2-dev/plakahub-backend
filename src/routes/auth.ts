@@ -1,8 +1,14 @@
 import { Router, Request, Response } from "express";
 import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 import prisma from "../lib/prisma";
 
 const router = Router();
+const JWT_SECRET = process.env.JWT_SECRET || "fallback_secret";
+
+function generateToken(userId: string): string {
+  return jwt.sign({ userId }, JWT_SECRET, { expiresIn: "7d" });
+}
 
 router.post("/register", async (req: Request, res: Response): Promise<void> => {
   const { email, password, plateNumber } = req.body;
@@ -43,7 +49,7 @@ router.post("/register", async (req: Request, res: Response): Promise<void> => {
 
   const hashedPassword = await bcrypt.hash(password, 12);
 
-  await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const user = await tx.user.create({
       data: {
         email,
@@ -51,17 +57,87 @@ router.post("/register", async (req: Request, res: Response): Promise<void> => {
       },
     });
 
-    await tx.plate.create({
+    const plate = await tx.plate.create({
       data: {
         plateNumber: normalizedPlate,
         userId: user.id,
       },
     });
+
+    return { user, plate };
   });
+
+  const token = generateToken(result.user.id);
 
   res.status(201).json({
     success: true,
     message: "Kayıt başarılı, plaka eklendi.",
+    token,
+    user: {
+      id: result.user.id,
+      email: result.user.email,
+      plates: [
+        {
+          plateNumber: result.plate.plateNumber,
+          isVerified: result.plate.isVerified,
+        },
+      ],
+    },
+  });
+});
+
+router.post("/login", async (req: Request, res: Response): Promise<void> => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    res.status(400).json({
+      success: false,
+      message: "email ve password alanları zorunludur.",
+    });
+    return;
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { email },
+    include: {
+      plates: {
+        select: {
+          plateNumber: true,
+          isVerified: true,
+        },
+      },
+    },
+  });
+
+  if (!user) {
+    res.status(401).json({
+      success: false,
+      message: "E-posta veya şifre hatalı.",
+    });
+    return;
+  }
+
+  const isPasswordValid = await bcrypt.compare(password, user.password);
+
+  if (!isPasswordValid) {
+    res.status(401).json({
+      success: false,
+      message: "E-posta veya şifre hatalı.",
+    });
+    return;
+  }
+
+  const token = generateToken(user.id);
+
+  res.json({
+    success: true,
+    message: "Giriş başarılı.",
+    token,
+    user: {
+      id: user.id,
+      email: user.email,
+      plates: user.plates,
+    },
   });
 });
 
