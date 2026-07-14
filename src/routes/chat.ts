@@ -189,19 +189,27 @@ router.post("/:id/messages", async (req: Request, res: Response): Promise<void> 
   });
 
   const recipientId = conversation.user1Id === userId ? conversation.user2Id : conversation.user1Id;
-  const recipient = await prisma.user.findUnique({
-    where: { id: recipientId },
-    select: { expoPushToken: true },
-  });
+  const [recipient, sender] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: recipientId },
+      select: { expoPushToken: true },
+    }),
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { plates: { select: { plateNumber: true }, take: 1 } },
+    }),
+  ]);
 
   if (recipient?.expoPushToken && Expo.isExpoPushToken(recipient.expoPushToken)) {
+    const senderPlate = sender?.plates[0]?.plateNumber ?? "Birisi";
+    const preview = content.trim().length > 50 ? content.trim().slice(0, 50) + "..." : content.trim();
     try {
       await expo.sendPushNotificationsAsync([
         {
           to: recipient.expoPushToken,
           sound: "default",
-          title: "Plakanıza Yeni Mesaj",
-          body: "Birisi plakanıza bir mesaj bıraktı. Okumak için dokunun.",
+          title: `${senderPlate} - Yeni Mesaj`,
+          body: preview,
           data: { conversationId },
         },
       ]);
