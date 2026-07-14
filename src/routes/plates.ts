@@ -45,6 +45,7 @@ router.get("/search/:plateNumber", searchLimiter, async (req: Request<{ plateNum
     found: true,
     plateNumber: plate.plateNumber,
     isVerified: plate.isVerified,
+    userId: plate.userId,
     socialProfiles: plate.user.socialProfiles,
   });
 });
