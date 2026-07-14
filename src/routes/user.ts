@@ -273,6 +273,48 @@ router.get("/block-check/:userId", async (req: Request, res: Response): Promise<
   res.json({ success: true, isBlocked: !!block });
 });
 
+router.post("/report", async (req: Request, res: Response): Promise<void> => {
+  const userId = req.user!.userId;
+  const { reportedUserId, conversationId, reason } = req.body;
+
+  if (!reportedUserId || typeof reportedUserId !== "string") {
+    res.status(400).json({ success: false, message: "reportedUserId gereklidir." });
+    return;
+  }
+
+  if (!reason || typeof reason !== "string" || reason.trim().length < 3) {
+    res.status(400).json({ success: false, message: "Sikayet sebebi en az 3 karakter olmalidir." });
+    return;
+  }
+
+  if (reportedUserId === userId) {
+    res.status(400).json({ success: false, message: "Kendinizi sikayet edemezsiniz." });
+    return;
+  }
+
+  const targetUser = await prisma.user.findUnique({ where: { id: reportedUserId } });
+  if (!targetUser) {
+    res.status(404).json({ success: false, message: "Kullanici bulunamadi." });
+    return;
+  }
+
+  if (reason.trim().length > 500) {
+    res.status(400).json({ success: false, message: "Sikayet sebebi en fazla 500 karakter olabilir." });
+    return;
+  }
+
+  await prisma.report.create({
+    data: {
+      reporterId: userId,
+      reportedUserId,
+      conversationId: conversationId || null,
+      reason: reason.trim(),
+    },
+  });
+
+  res.json({ success: true, message: "Sikayet bildirildi. Tesekkurler." });
+});
+
 router.put("/vehicle", async (req: Request, res: Response): Promise<void> => {
   const userId = req.user!.userId;
   const { carBrand, carModel, carYear } = req.body;

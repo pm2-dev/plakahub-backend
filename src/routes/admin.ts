@@ -7,10 +7,11 @@ const router = Router();
 router.use(authenticateToken, isAdmin);
 
 router.get("/stats", async (_req: Request, res: Response): Promise<void> => {
-  const [totalUsers, totalPlates, verifiedPlates] = await Promise.all([
+  const [totalUsers, totalPlates, verifiedPlates, pendingReports] = await Promise.all([
     prisma.user.count(),
     prisma.plate.count(),
     prisma.plate.count({ where: { isVerified: true } }),
+    prisma.report.count({ where: { status: "PENDING" } }),
   ]);
 
   res.json({
@@ -20,6 +21,7 @@ router.get("/stats", async (_req: Request, res: Response): Promise<void> => {
       totalPlates,
       verifiedPlates,
       unverifiedPlates: totalPlates - verifiedPlates,
+      pendingReports,
     },
   });
 });
@@ -87,6 +89,68 @@ router.patch("/plates/:id/verify", async (req: Request<{ id: string }>, res: Res
     message: updated.isVerified ? "Plaka doğrulandı." : "Plaka doğrulaması kaldırıldı.",
     isVerified: updated.isVerified,
   });
+});
+
+router.get("/reports", async (req: Request, res: Response): Promise<void> => {
+  const status = req.query.status as string | undefined;
+
+  const where = status ? { status: status as "PENDING" | "REVIEWED" | "DISMISSED" } : {};
+
+  const reports = await prisma.report.findMany({
+    where,
+    orderBy: { createdAt: "desc" },
+    include: {
+      reporter: {
+        select: { id: true, email: true, plates: { select: { plateNumber: true } } },
+      },
+      reportedUser: {
+        select: { id: true, email: true, plates: { select: { plateNumber: true } } },
+      },
+      conversation: {
+        select: {
+          id: true,
+          messages: {
+            orderBy: { createdAt: "desc" },
+            take: 10,
+            select: {
+              id: true,
+              content: true,
+              senderId: true,
+              createdAt: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  res.json({ success: true, reports });
+});
+
+router.patch("/reports/:id", async (req: Request<{ id: string }>, res: Response): Promise<void> => {
+  const { id } = req.params;
+  const { status, adminNote } = req.body;
+
+  if (!status || !["REVIEWED", "DISMISSED"].includes(status)) {
+    res.status(400).json({ success: false, message: "Gecerli bir durum secin: REVIEWED veya DISMISSED." });
+    return;
+  }
+
+  const report = await prisma.report.findUnique({ where: { id } });
+  if (!report) {
+    res.status(404).json({ success: false, message: "Rapor bulunamadi." });
+    return;
+  }
+
+  const updated = await prisma.report.update({
+    where: { id },
+    data: {
+      status,
+      adminNote: adminNote || null,
+    },
+  });
+
+  res.json({ success: true, report: updated });
 });
 
 router.delete("/plates/:id", async (req: Request<{ id: string }>, res: Response): Promise<void> => {

@@ -31,6 +31,8 @@ model User {
   sentMessages         Message[]
   blockedUsers         BlockedUser[]   @relation("blocker")
   blockedByUsers       BlockedUser[]   @relation("blocked")
+  reports              Report[]        @relation("reporter")
+  reportedReports      Report[]        @relation("reported")
 
   @@map("users")
 }
@@ -50,6 +52,33 @@ model BlockedUser {
   @@map("blocked_users")
 }
 
+enum ReportStatus {
+  PENDING
+  REVIEWED
+  DISMISSED
+}
+
+model Report {
+  id             String       @id @default(cuid())
+  reporterId     String       @map("reporter_id")
+  reportedUserId String       @map("reported_user_id")
+  conversationId String?      @map("conversation_id")
+  reason         String
+  status         ReportStatus @default(PENDING)
+  adminNote      String?      @map("admin_note")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  reporter     User          @relation("reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  reportedUser User          @relation("reported", fields: [reportedUserId], references: [id], onDelete: Cascade)
+  conversation Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+
+  @@index([reporterId])
+  @@index([reportedUserId])
+  @@index([status])
+  @@map("reports")
+}
+
 model Conversation {
   id        String   @id @default(cuid())
   user1Id   String   @map("user1_id")
@@ -60,6 +89,7 @@ model Conversation {
   user1    User      @relation("user1", fields: [user1Id], references: [id], onDelete: Cascade)
   user2    User      @relation("user2", fields: [user2Id], references: [id], onDelete: Cascade)
   messages Message[]
+  reports  Report[]
 
   @@unique([user1Id, user2Id])
   @@index([user1Id])
