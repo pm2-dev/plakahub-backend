@@ -1,6 +1,9 @@
 import { Router, Request, Response } from "express";
+import { Expo } from "expo-server-sdk";
 import { authenticateToken } from "../middlewares/auth";
 import prisma from "../lib/prisma";
+
+const expo = new Expo();
 
 const router = Router();
 
@@ -138,6 +141,28 @@ router.post("/:id/messages", async (req: Request, res: Response): Promise<void> 
     where: { id: conversationId },
     data: { updatedAt: new Date() },
   });
+
+  const recipientId = conversation.user1Id === userId ? conversation.user2Id : conversation.user1Id;
+  const recipient = await prisma.user.findUnique({
+    where: { id: recipientId },
+    select: { expoPushToken: true },
+  });
+
+  if (recipient?.expoPushToken && Expo.isExpoPushToken(recipient.expoPushToken)) {
+    try {
+      await expo.sendPushNotificationsAsync([
+        {
+          to: recipient.expoPushToken,
+          sound: "default",
+          title: "Plakanıza Yeni Mesaj",
+          body: "Birisi plakanıza bir mesaj bıraktı. Okumak için dokunun.",
+          data: { conversationId },
+        },
+      ]);
+    } catch {
+      // Push gönderilemezse mesaj akışını engelleme
+    }
+  }
 
   res.status(201).json({ success: true, message });
 });

@@ -75,4 +75,21 @@ router.put("/socials", async (req: Request, res: Response): Promise<void> => {
   });
 });
 
+router.put("/push-token", async (req: Request, res: Response): Promise<void> => {
+  const userId = req.user!.userId;
+  const { token } = req.body;
+
+  if (!token || typeof token !== "string") {
+    res.status(400).json({ success: false, message: "Geçerli bir push token gereklidir." });
+    return;
+  }
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: { expoPushToken: token },
+  });
+
+  res.json({ success: true, message: "Push token kaydedildi." });
+});
+
 export default router;

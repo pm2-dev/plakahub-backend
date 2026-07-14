@@ -19,11 +19,12 @@ enum Platform {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  password  String
-  role      Role     @default(USER)
-  createdAt DateTime @default(now())
+  id            String   @id @default(cuid())
+  email         String   @unique
+  password      String
+  role          Role     @default(USER)
+  expoPushToken String?  @map("expo_push_token")
+  createdAt     DateTime @default(now())
 
   plates               Plate[]
   socialProfiles       SocialProfile[]
