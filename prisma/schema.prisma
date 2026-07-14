@@ -25,10 +25,46 @@ model User {
   role      Role     @default(USER)
   createdAt DateTime @default(now())
 
-  plates         Plate[]
-  socialProfiles SocialProfile[]
+  plates               Plate[]
+  socialProfiles       SocialProfile[]
+  conversationsAsUser1 Conversation[]  @relation("user1")
+  conversationsAsUser2 Conversation[]  @relation("user2")
+  sentMessages         Message[]
 
   @@map("users")
+}
+
+model Conversation {
+  id        String   @id @default(cuid())
+  user1Id   String   @map("user1_id")
+  user2Id   String   @map("user2_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user1    User      @relation("user1", fields: [user1Id], references: [id], onDelete: Cascade)
+  user2    User      @relation("user2", fields: [user2Id], references: [id], onDelete: Cascade)
+  messages Message[]
+
+  @@unique([user1Id, user2Id])
+  @@index([user1Id])
+  @@index([user2Id])
+  @@map("conversations")
+}
+
+model Message {
+  id             String   @id @default(cuid())
+  conversationId String   @map("conversation_id")
+  senderId       String   @map("sender_id")
+  content        String
+  isRead         Boolean  @default(false) @map("is_read")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@index([senderId])
+  @@map("messages")
 }
 
 model Plate {

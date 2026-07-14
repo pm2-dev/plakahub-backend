@@ -7,6 +7,7 @@ import authRouter from "./routes/auth";
 import platesRouter from "./routes/plates";
 import adminRouter from "./routes/admin";
 import userRouter from "./routes/user";
+import chatRouter from "./routes/chat";
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3001;
@@ -43,6 +44,7 @@ app.use("/api/auth", authRouter);
 app.use("/api/plates", platesRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api/user", userRouter);
+app.use("/api/chat", chatRouter);
 
 app.listen(PORT, () => {
   console.log(`PlakaHub API sunucusu ${PORT} portunda çalışıyor`);

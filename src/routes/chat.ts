@@ -1,0 +1,145 @@
+import { Router, Request, Response } from "express";
+import { authenticateToken } from "../middlewares/auth";
+import prisma from "../lib/prisma";
+
+const router = Router();
+
+router.use(authenticateToken);
+
+router.post("/start", async (req: Request, res: Response): Promise<void> => {
+  const userId = req.user!.userId;
+  const { targetUserId } = req.body;
+
+  if (!targetUserId || typeof targetUserId !== "string") {
+    res.status(400).json({ success: false, message: "targetUserId gereklidir." });
+    return;
+  }
+
+  if (targetUserId === userId) {
+    res.status(400).json({ success: false, message: "Kendinize mesaj atamazsınız." });
+    return;
+  }
+
+  const targetUser = await prisma.user.findUnique({ where: { id: targetUserId } });
+  if (!targetUser) {
+    res.status(404).json({ success: false, message: "Hedef kullanıcı bulunamadı." });
+    return;
+  }
+
+  const [u1, u2] = [userId, targetUserId].sort();
+
+  let conversation = await prisma.conversation.findUnique({
+    where: { user1Id_user2Id: { user1Id: u1, user2Id: u2 } },
+    include: {
+      user1: { select: { id: true, email: true, plates: { select: { plateNumber: true } } } },
+      user2: { select: { id: true, email: true, plates: { select: { plateNumber: true } } } },
+    },
+  });
+
+  if (!conversation) {
+    conversation = await prisma.conversation.create({
+      data: { user1Id: u1, user2Id: u2 },
+      include: {
+        user1: { select: { id: true, email: true, plates: { select: { plateNumber: true } } } },
+        user2: { select: { id: true, email: true, plates: { select: { plateNumber: true } } } },
+      },
+    });
+  }
+
+  res.json({ success: true, conversation });
+});
+
+router.get("/", async (req: Request, res: Response): Promise<void> => {
+  const userId = req.user!.userId;
+
+  const conversations = await prisma.conversation.findMany({
+    where: {
+      OR: [{ user1Id: userId }, { user2Id: userId }],
+    },
+    include: {
+      user1: { select: { id: true, email: true, plates: { select: { plateNumber: true } } } },
+      user2: { select: { id: true, email: true, plates: { select: { plateNumber: true } } } },
+      messages: {
+        orderBy: { createdAt: "desc" },
+        take: 1,
+      },
+    },
+    orderBy: { updatedAt: "desc" },
+  });
+
+  res.json({ success: true, conversations });
+});
+
+router.get("/:id/messages", async (req: Request, res: Response): Promise<void> => {
+  const userId = req.user!.userId;
+  const conversationId = req.params.id;
+
+  const conversation = await prisma.conversation.findUnique({
+    where: { id: conversationId },
+  });
+
+  if (!conversation) {
+    res.status(404).json({ success: false, message: "Sohbet bulunamadı." });
+    return;
+  }
+
+  if (conversation.user1Id !== userId && conversation.user2Id !== userId) {
+    res.status(403).json({ success: false, message: "Bu sohbete erişim yetkiniz yok." });
+    return;
+  }
+
+  const messages = await prisma.message.findMany({
+    where: { conversationId },
+    orderBy: { createdAt: "asc" },
+    include: {
+      sender: { select: { id: true, email: true } },
+    },
+  });
+
+  res.json({ success: true, messages });
+});
+
+router.post("/:id/messages", async (req: Request, res: Response): Promise<void> => {
+  const userId = req.user!.userId;
+  const conversationId = req.params.id;
+  const { content } = req.body;
+
+  if (!content || typeof content !== "string" || content.trim().length === 0) {
+    res.status(400).json({ success: false, message: "Mesaj içeriği boş olamaz." });
+    return;
+  }
+
+  const conversation = await prisma.conversation.findUnique({
+    where: { id: conversationId },
+  });
+
+  if (!conversation) {
+    res.status(404).json({ success: false, message: "Sohbet bulunamadı." });
+    return;
+  }
+
+  if (conversation.user1Id !== userId && conversation.user2Id !== userId) {
+    res.status(403).json({ success: false, message: "Bu sohbete mesaj gönderme yetkiniz yok." });
+    return;
+  }
+
+  const message = await prisma.message.create({
+    data: {
+      conversationId,
+      senderId: userId,
+      content: content.trim(),
+    },
+    include: {
+      sender: { select: { id: true, email: true } },
+    },
+  });
+
+  await prisma.conversation.update({
+    where: { id: conversationId },
+    data: { updatedAt: new Date() },
+  });
+
+  res.status(201).json({ success: true, message });
+});
+
+export default router;
