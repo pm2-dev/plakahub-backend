@@ -1,0 +1,55 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Platform {
+  INSTAGRAM
+  TWITTER
+  TIKTOK
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+
+  plates         Plate[]
+  socialProfiles SocialProfile[]
+
+  @@map("users")
+}
+
+model Plate {
+  id          String  @id @default(cuid())
+  plateNumber String  @unique @map("plate_number")
+  isVerified  Boolean @default(false) @map("is_verified")
+
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([plateNumber])
+  @@map("plates")
+}
+
+model SocialProfile {
+  id       String   @id @default(cuid())
+  platform Platform
+  username String
+  isHidden Boolean  @default(false) @map("is_hidden")
+
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([userId, platform])
+  @@map("social_profiles")
+}
