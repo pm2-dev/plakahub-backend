@@ -1,9 +1,21 @@
 import { Router, Request, Response } from "express";
+import rateLimit from "express-rate-limit";
 import prisma from "../lib/prisma";
 
 const router = Router();
 
-router.get("/search/:plateNumber", async (req: Request<{ plateNumber: string }>, res: Response): Promise<void> => {
+const searchLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 10,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: {
+    found: false,
+    error: "Çok fazla sorgu yaptınız, lütfen 1 dakika bekleyin.",
+  },
+});
+
+router.get("/search/:plateNumber", searchLimiter, async (req: Request<{ plateNumber: string }>, res: Response): Promise<void> => {
   const raw = req.params.plateNumber;
   const normalized = raw.replace(/\s+/g, "").toUpperCase();
 

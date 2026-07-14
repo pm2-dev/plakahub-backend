@@ -1,11 +1,15 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 import authRouter from "./routes/auth";
 import platesRouter from "./routes/plates";
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3001;
+
+app.use(helmet());
 
 app.use(
   cors({
@@ -13,6 +17,19 @@ app.use(
     credentials: true,
   })
 );
+
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 100,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: {
+    success: false,
+    error: "Çok fazla istek gönderdiniz, lütfen 15 dakika sonra tekrar deneyin.",
+  },
+});
+
+app.use(globalLimiter);
 
 app.use(express.json());
 
