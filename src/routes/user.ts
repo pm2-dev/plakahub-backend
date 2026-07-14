@@ -41,20 +41,39 @@ router.get("/profile", async (req: Request, res: Response): Promise<void> => {
 
 router.put("/socials", async (req: Request, res: Response): Promise<void> => {
   const userId = req.user!.userId;
-  const { instagram, twitter, tiktok } = req.body;
+  const { profiles: incoming } = req.body;
 
-  const profiles: { platform: "INSTAGRAM" | "TWITTER" | "TIKTOK"; username: string }[] = [];
+  if (!Array.isArray(incoming)) {
+    res.status(400).json({ success: false, message: "profiles dizisi gereklidir." });
+    return;
+  }
 
-  if (instagram?.trim()) profiles.push({ platform: "INSTAGRAM", username: instagram.trim() });
-  if (twitter?.trim()) profiles.push({ platform: "TWITTER", username: twitter.trim() });
-  if (tiktok?.trim()) profiles.push({ platform: "TIKTOK", username: tiktok.trim() });
+  const validProfiles: { platform: string; username: string }[] = [];
+  const seenPlatforms = new Set<string>();
+
+  for (const item of incoming) {
+    const platform = String(item?.platform ?? "").trim().toUpperCase();
+    const username = String(item?.username ?? "").trim();
+
+    if (!platform || !username) continue;
+    if (platform.length > 50 || username.length > 100) continue;
+    if (seenPlatforms.has(platform)) continue;
+
+    seenPlatforms.add(platform);
+    validProfiles.push({ platform, username });
+  }
+
+  if (validProfiles.length > 20) {
+    res.status(400).json({ success: false, message: "En fazla 20 sosyal profil eklenebilir." });
+    return;
+  }
 
   await prisma.$transaction(async (tx) => {
     await tx.socialProfile.deleteMany({ where: { userId } });
 
-    if (profiles.length > 0) {
+    if (validProfiles.length > 0) {
       await tx.socialProfile.createMany({
-        data: profiles.map((p) => ({
+        data: validProfiles.map((p) => ({
           userId,
           platform: p.platform,
           username: p.username,

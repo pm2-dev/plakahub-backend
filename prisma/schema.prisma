@@ -12,12 +12,6 @@ enum Role {
   ADMIN
 }
 
-enum Platform {
-  INSTAGRAM
-  TWITTER
-  TIKTOK
-}
-
 model User {
   id            String   @id @default(cuid())
   email         String   @unique
@@ -83,10 +77,10 @@ model Plate {
 }
 
 model SocialProfile {
-  id       String   @id @default(cuid())
-  platform Platform
+  id       String  @id @default(cuid())
+  platform String
   username String
-  isHidden Boolean  @default(false) @map("is_hidden")
+  isHidden Boolean @default(false) @map("is_hidden")
 
   userId String @map("user_id")
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -94,5 +88,6 @@ model SocialProfile {
   createdAt DateTime @default(now()) @map("created_at")
 
   @@unique([userId, platform])
+  @@index([userId])
   @@map("social_profiles")
 }

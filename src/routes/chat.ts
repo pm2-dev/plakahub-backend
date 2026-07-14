@@ -75,7 +75,7 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
 
 router.get("/:id/messages", async (req: Request, res: Response): Promise<void> => {
   const userId = req.user!.userId;
-  const conversationId = req.params.id;
+  const conversationId = req.params.id as string;
 
   const conversation = await prisma.conversation.findUnique({
     where: { id: conversationId },
@@ -104,7 +104,7 @@ router.get("/:id/messages", async (req: Request, res: Response): Promise<void> =
 
 router.post("/:id/messages", async (req: Request, res: Response): Promise<void> => {
   const userId = req.user!.userId;
-  const conversationId = req.params.id;
+  const conversationId = req.params.id as string;
   const { content } = req.body;
 
   if (!content || typeof content !== "string" || content.trim().length === 0) {
