@@ -175,7 +175,6 @@ router.post("/admin-verify", async (req: Request, res: Response): Promise<void> 
     issuer: "PlakaHub",
     label: ADMIN_USER,
     secret: ADMIN_TOTP_SECRET,
-    type: "totp",
   });
 
   res.json({
