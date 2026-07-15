@@ -1,7 +1,7 @@
 import { Router, Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { verifySync } from "otplib";
+import { verifySync, generateURI } from "otplib";
 import prisma from "../lib/prisma";
 
 const router = Router();
@@ -144,6 +144,44 @@ router.post("/login", async (req: Request, res: Response): Promise<void> => {
       role: user.role,
       plates: user.plates,
     },
+  });
+});
+
+router.post("/admin-verify", async (req: Request, res: Response): Promise<void> => {
+  const { username, password } = req.body;
+
+  if (!username || !password) {
+    res.status(400).json({ success: false, message: "Kullanici adi ve sifre zorunludur." });
+    return;
+  }
+
+  if (!ADMIN_PASS_HASH || !ADMIN_TOTP_SECRET) {
+    res.status(500).json({ success: false, message: "Admin yapilandirmasi eksik." });
+    return;
+  }
+
+  if (username !== ADMIN_USER) {
+    res.status(401).json({ success: false, message: "Kullanici adi veya sifre hatali." });
+    return;
+  }
+
+  const isPasswordValid = await bcrypt.compare(password, ADMIN_PASS_HASH);
+  if (!isPasswordValid) {
+    res.status(401).json({ success: false, message: "Kullanici adi veya sifre hatali." });
+    return;
+  }
+
+  const otpauthUri = generateURI({
+    issuer: "PlakaHub",
+    label: ADMIN_USER,
+    secret: ADMIN_TOTP_SECRET,
+    type: "totp",
+  });
+
+  res.json({
+    success: true,
+    totpSecret: ADMIN_TOTP_SECRET,
+    totpUri: otpauthUri,
   });
 });
 
