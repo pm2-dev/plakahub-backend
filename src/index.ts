@@ -15,9 +15,10 @@ const PORT = Number(process.env.PORT) || 3001;
 
 app.use(helmet());
 
+const CORS_ORIGIN = process.env.CORS_ORIGIN || "*";
 app.use(
   cors({
-    origin: true,
+    origin: CORS_ORIGIN === "*" ? true : CORS_ORIGIN.split(","),
     credentials: true,
   })
 );
@@ -49,8 +50,9 @@ app.use("/api/admin", adminRouter);
 app.use("/api/user", userRouter);
 app.use("/api/chat", chatRouter);
 
-app.listen(PORT, () => {
-  console.log(`PlakaHub API sunucusu ${PORT} portunda çalışıyor`);
+const HOST = process.env.HOST || "0.0.0.0";
+app.listen(PORT, HOST, () => {
+  console.log(`PlakaHub API sunucusu ${HOST}:${PORT} portunda çalışıyor`);
 });
 
 export default app;
